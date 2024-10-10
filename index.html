@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nature Classification</title>
+    <!-- Load TensorFlow.js and Teachable Machine Image library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #webcam-container { margin-top: 20px; }
+        #result { font-size: 1.2em; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Nature Classification</h1>
+    <button onclick="startApp()">Start Webcam</button>
+    <div id="webcam-container"></div>
+    <div id="result">Loading...</div>
+
+    <script type="text/javascript">
+        let model, webcam, labelContainer, maxPredictions;
+
+        function startApp() {
+            if (typeof tmImage === 'undefined') {
+                alert('Teachable Machine Image library failed to load. Please try again.');
+                return;
+            }
+            init();
+        }
+
+        async function init() {
+            // Define model URLs
+            const modelURL = "model.json";
+            const metadataURL = "metadata.json";
+
+            try {
+                // Load the Teachable Machine model
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // Initialize the webcam
+                webcam = new tmImage.Webcam(200, 200, true); // width, height, flip
+                await webcam.setup(); // request access to the webcam
+                await webcam.play();
+                window.requestAnimationFrame(loop);
+
+                // Append the webcam canvas to the DOM
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("result");
+            } catch (error) {
+                console.error("Failed to load the model or initialize the webcam:", error);
+                document.getElementById("result").innerText = "Error loading model or webcam.";
+            }
+        }
+
+        async function loop() {
+            webcam.update(); // update the webcam frame
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            // Run predictions on the current frame from the webcam
+            const prediction = await model.predict(webcam.canvas);
+            let highestProbability = 0;
+            let label = "";
+            // Find the class with the highest probability
+            for (let i = 0; i < maxPredictions; i++) {
+                if (prediction[i].probability > highestProbability) {
+                    highestProbability = prediction[i].probability;
+                    label = prediction[i].className;
+                }
+            }
+            // Display the prediction with the highest probability
+            labelContainer.innerHTML = `Prediction: ${label} (${(highestProbability * 100).toFixed(2)}%)`;
+        }
+    </script>
+</body>
+</html>
